@@ -1006,6 +1006,7 @@
   <div class="tabs">
     <div class="tab ativa" onclick="mudarTabAdmin('usuarios', this)">👥 Participantes</div>
     <div class="tab" onclick="mudarTabAdmin('resultados-admin', this)">⚽ Resultados</div>
+    <div class="tab" onclick="mudarTabAdmin('jogos-admin', this)">📅 Jogos</div>
   </div>
 
   <!-- ADMIN: USUÁRIOS -->
@@ -1035,6 +1036,75 @@
       <h3>⚽ Lançar Resultado</h3>
       <div id="lista-jogos-admin">
         <div class="loading"><div class="spinner"></div> Carregando jogos...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN: JOGOS -->
+  <div id="tab-admin-jogos" class="conteudo" style="display:none">
+    <div class="admin-grid">
+      <div class="admin-card">
+        <h3>➕ Cadastrar Novo Jogo</h3>
+        <div style="display:grid;gap:0.6rem">
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem">
+            <div class="campo-grupo" style="margin:0">
+              <label>Fase</label>
+              <select id="jogo-fase" style="width:100%;background:var(--bg3);border:1px solid var(--borda);border-radius:8px;padding:0.6rem 0.8rem;color:var(--texto);font-family:'Barlow',sans-serif;outline:none" onchange="toggleGrupo()">
+                <option value="grupos">Grupos</option>
+                <option value="oitavas">Oitavas</option>
+                <option value="quartas">Quartas</option>
+                <option value="semi">Semifinal</option>
+                <option value="terceiro">3º Lugar</option>
+                <option value="final">Final</option>
+              </select>
+            </div>
+            <div class="campo-grupo" style="margin:0" id="campo-grupo-wrap">
+              <label>Grupo</label>
+              <select id="jogo-grupo" style="width:100%;background:var(--bg3);border:1px solid var(--borda);border-radius:8px;padding:0.6rem 0.8rem;color:var(--texto);font-family:'Barlow',sans-serif;outline:none">
+                <option>A</option><option>B</option><option>C</option><option>D</option>
+                <option>E</option><option>F</option><option>G</option><option>H</option>
+                <option>I</option><option>J</option><option>K</option><option>L</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 40px 1fr;gap:0.6rem;align-items:end">
+            <div class="campo-grupo" style="margin:0">
+              <label>Time A (🏳️ + nome)</label>
+              <input type="text" id="jogo-time-a" placeholder="🇧🇷 Brasil">
+            </div>
+            <div style="text-align:center;padding-bottom:0.6rem;font-family:'Bebas Neue',cursive;font-size:1.2rem;color:var(--texto2)">vs</div>
+            <div class="campo-grupo" style="margin:0">
+              <label>Time B (🏳️ + nome)</label>
+              <input type="text" id="jogo-time-b" placeholder="🇩🇪 Alemanha">
+            </div>
+          </div>
+
+          <div class="campo-grupo" style="margin:0">
+            <label>Data e hora (horário de Brasília)</label>
+            <input type="datetime-local" id="jogo-datahora" style="width:100%;background:var(--bg3);border:1px solid var(--borda);border-radius:8px;padding:0.6rem 0.8rem;color:var(--texto);font-family:'Barlow',sans-serif;outline:none;color-scheme:dark">
+          </div>
+
+          <div class="erro-msg" id="admin-erro-jogo" style="display:none"></div>
+
+          <button class="btn btn-verde" onclick="cadastrarJogo()">Cadastrar Jogo</button>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3>📅 Jogos cadastrados</h3>
+        <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
+          <button class="btn-sm btn-sm-verde" onclick="filtrarJogosAdmin('todos')">Todos</button>
+          <button class="btn-sm btn-sm-azul" onclick="filtrarJogosAdmin('grupos')">Grupos</button>
+          <button class="btn-sm btn-sm-ouro" onclick="filtrarJogosAdmin('oitavas')">Oitavas</button>
+          <button class="btn-sm btn-sm-ouro" onclick="filtrarJogosAdmin('quartas')">Quartas</button>
+          <button class="btn-sm btn-sm-ouro" onclick="filtrarJogosAdmin('semi')">Semi</button>
+          <button class="btn-sm btn-sm-ouro" onclick="filtrarJogosAdmin('final')">Final</button>
+        </div>
+        <div id="lista-jogos-cadastrados">
+          <div class="loading"><div class="spinner"></div> Carregando...</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1258,6 +1328,133 @@ function mudarTabAdmin(nome, el) {
 
   if (nome === 'usuarios') carregarUsuariosAdmin();
   if (nome === 'resultados-admin') carregarJogosAdmin();
+  if (nome === 'jogos-admin') carregarJogosCadastrados('todos');
+}
+
+// ============================================================
+// ADMIN: CADASTRO DE JOGOS
+// ============================================================
+function toggleGrupo() {
+  const fase = document.getElementById('jogo-fase').value;
+  document.getElementById('campo-grupo-wrap').style.display = fase === 'grupos' ? 'block' : 'none';
+}
+
+let filtroJogosAdmin = 'todos';
+
+async function cadastrarJogo() {
+  const fase = document.getElementById('jogo-fase').value;
+  const grupo = fase === 'grupos' ? document.getElementById('jogo-grupo').value : null;
+  const timeAraw = document.getElementById('jogo-time-a').value.trim();
+  const timeBraw = document.getElementById('jogo-time-b').value.trim();
+  const dataHora = document.getElementById('jogo-datahora').value;
+  const erroEl = document.getElementById('admin-erro-jogo');
+
+  if (!timeAraw || !timeBraw || !dataHora) {
+    mostrarErro(erroEl, 'Preencha todos os campos.');
+    return;
+  }
+
+  // Separar emoji do nome automaticamente
+  const separarEmoji = (str) => {
+    const match = str.match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})\s*(.*)/u);
+    return match ? { bandeira: match[1], nome: match[2].trim() } : { bandeira: '🏳️', nome: str };
+  };
+
+  const a = separarEmoji(timeAraw);
+  const b = separarEmoji(timeBraw);
+
+  const multiplicadores = { grupos: 1.0, oitavas: 1.2, quartas: 1.5, semi: 2.0, terceiro: 3.0, final: 3.0 };
+
+  // Converter datetime-local (horário Brasília) pra UTC
+  const dtLocal = new Date(dataHora);
+  const dtUTC = new Date(dtLocal.getTime() + 3 * 60 * 60 * 1000);
+
+  try {
+    erroEl.style.display = 'none';
+    await dbPost('jogos', {
+      fase,
+      grupo,
+      rodada: null,
+      time_a: a.nome,
+      time_b: b.nome,
+      bandeira_a: a.bandeira,
+      bandeira_b: b.bandeira,
+      data_hora: dtUTC.toISOString(),
+      multiplicador: multiplicadores[fase] || 1.0,
+      resultado_lancado: false
+    });
+
+    // Limpar campos
+    document.getElementById('jogo-time-a').value = '';
+    document.getElementById('jogo-time-b').value = '';
+    document.getElementById('jogo-datahora').value = '';
+
+    carregarJogosCadastrados(filtroJogosAdmin);
+
+    // Feedback visual
+    const btn = document.querySelector('[onclick="cadastrarJogo()"]');
+    const orig = btn.textContent;
+    btn.textContent = '✅ Jogo cadastrado!';
+    btn.style.background = 'var(--verde-escuro)';
+    setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 2000);
+
+  } catch(e) {
+    mostrarErro(erroEl, 'Erro ao cadastrar jogo.');
+    console.error(e);
+  }
+}
+
+async function carregarJogosCadastrados(filtro = 'todos') {
+  filtroJogosAdmin = filtro;
+  const lista = document.getElementById('lista-jogos-cadastrados');
+  lista.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando...</div>';
+
+  try {
+    const params = filtro === 'todos'
+      ? 'order=data_hora.asc'
+      : `fase=eq.${filtro}&order=data_hora.asc`;
+
+    const jogos = await dbGet('jogos', params);
+
+    if (jogos.length === 0) {
+      lista.innerHTML = '<div class="vazio" style="padding:1.5rem">Nenhum jogo cadastrado nessa fase ainda.</div>';
+      return;
+    }
+
+    lista.innerHTML = jogos.map(j => `
+      <div style="padding:0.7rem 0;border-bottom:1px solid var(--borda);display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:0.7rem;color:var(--verde);margin-bottom:2px">${formatarFase(j.fase)} ${j.grupo ? '• Grupo ' + j.grupo : ''} • ×${j.multiplicador}</div>
+          <div style="font-size:0.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            ${j.bandeira_a || '🏳️'} ${j.time_a} vs ${j.time_b} ${j.bandeira_b || '🏳️'}
+          </div>
+          <div style="font-size:0.75rem;color:var(--texto2)">${formatarData(j.data_hora)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0">
+          ${j.resultado_lancado ? '<span class="jogo-status status-encerrado">✅</span>' : '<span class="jogo-status status-aberto">Aberto</span>'}
+          ${!j.resultado_lancado ? `<button class="btn-sm btn-sm-vermelho" onclick="excluirJogo('${j.id}')">🗑️</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+
+  } catch(e) {
+    lista.innerHTML = '<div class="vazio">❌ Erro ao carregar.</div>';
+    console.error(e);
+  }
+}
+
+async function excluirJogo(id) {
+  if (!confirm('Excluir esse jogo? Os palpites relacionados também serão removidos.')) return;
+  try {
+    await dbDelete('jogos', `id=eq.${id}`);
+    carregarJogosCadastrados(filtroJogosAdmin);
+  } catch(e) {
+    alert('Erro ao excluir jogo.');
+  }
+}
+
+function filtrarJogosAdmin(fase) {
+  carregarJogosCadastrados(fase);
 }
 
 // ============================================================
