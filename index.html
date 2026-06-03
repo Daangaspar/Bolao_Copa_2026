@@ -951,7 +951,17 @@
     <div id="alerta-palpites" class="alerta-palpites" style="display:none">
       ⚠️ <span id="alerta-texto"></span>
     </div>
-    <div class="secao-titulo">⚡ Próximos jogos</div>
+    <div class="ranking-tabs" style="flex-wrap:wrap">
+      <button class="ranking-tab ativa" onclick="filtrarPalpites('todos', this)">Todos</button>
+      <button class="ranking-tab" onclick="filtrarPalpites('rodada1', this)">Rodada 1</button>
+      <button class="ranking-tab" onclick="filtrarPalpites('rodada2', this)">Rodada 2</button>
+      <button class="ranking-tab" onclick="filtrarPalpites('rodada3', this)">Rodada 3</button>
+      <button class="ranking-tab" onclick="filtrarPalpites('oitavas', this)">Oitavas</button>
+      <button class="ranking-tab" onclick="filtrarPalpites('quartas', this)">Quartas</button>
+      <button class="ranking-tab" onclick="filtrarPalpites('semi', this)">Semi</button>
+      <button class="ranking-tab" onclick="filtrarPalpites('final', this)">Final</button>
+    </div>
+    <div class="secao-titulo">⚡ <span id="filtro-titulo">Próximos jogos</span></div>
     <div id="lista-palpites">
       <div class="loading"><div class="spinner"></div> Carregando jogos...</div>
     </div>
@@ -1460,13 +1470,36 @@ function filtrarJogosAdmin(fase) {
 // ============================================================
 // PALPITAR
 // ============================================================
+let filtroPalpiteAtual = 'todos';
+
+function filtrarPalpites(filtro, el) {
+  filtroPalpiteAtual = filtro;
+  document.querySelectorAll('#tab-palpites .ranking-tab').forEach(t => t.classList.remove('ativa'));
+  el.classList.add('ativa');
+  const titulos = {
+    todos: 'Próximos jogos', rodada1: 'Rodada 1', rodada2: 'Rodada 2', rodada3: 'Rodada 3',
+    oitavas: 'Oitavas de Final', quartas: 'Quartas de Final', semi: 'Semifinais', final: 'Final'
+  };
+  document.getElementById('filtro-titulo').textContent = titulos[filtro] || 'Jogos';
+  carregarPalpites();
+}
+
 async function carregarPalpites() {
   const lista = document.getElementById('lista-palpites');
   lista.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando jogos...</div>';
 
   try {
     const agora = new Date();
-    const jogos = await dbGet('jogos', `resultado_lancado=eq.false&order=data_hora.asc&limit=30`);
+
+    // Montar filtro de query
+    let queryFiltro = 'order=data_hora.asc&limit=100';
+    if (filtroPalpiteAtual === 'rodada1') queryFiltro = 'fase=eq.grupos&rodada=eq.1&order=data_hora.asc';
+    else if (filtroPalpiteAtual === 'rodada2') queryFiltro = 'fase=eq.grupos&rodada=eq.2&order=data_hora.asc';
+    else if (filtroPalpiteAtual === 'rodada3') queryFiltro = 'fase=eq.grupos&rodada=eq.3&order=data_hora.asc';
+    else if (['oitavas','quartas','semi','terceiro','final'].includes(filtroPalpiteAtual)) queryFiltro = `fase=eq.${filtroPalpiteAtual}&order=data_hora.asc`;
+    else queryFiltro = 'resultado_lancado=eq.false&order=data_hora.asc&limit=100';
+
+    const jogos = await dbGet('jogos', queryFiltro);
     const meusPalpites = await dbGet('palpites', `participante_id=eq.${usuarioAtual.id}`);
 
     const semPalpite = jogos.filter(j => {
