@@ -1015,8 +1015,8 @@
 
   <div class="tabs">
     <div class="tab ativa" onclick="mudarTabAdmin('usuarios', this)">👥 Participantes</div>
-    <div class="tab" onclick="mudarTabAdmin('resultados-admin', this)">⚽ Resultados</div>
-    <div class="tab" onclick="mudarTabAdmin('jogos-admin', this)">📅 Jogos</div>
+    <div class="tab" onclick="mudarTabAdmin('resultados', this)">⚽ Resultados</div>
+    <div class="tab" onclick="mudarTabAdmin('jogos', this)">📅 Jogos</div>
   </div>
 
   <!-- ADMIN: USUÁRIOS -->
@@ -1337,8 +1337,8 @@ function mudarTabAdmin(nome, el) {
   document.getElementById(`tab-admin-${nome}`).style.display = 'block';
 
   if (nome === 'usuarios') carregarUsuariosAdmin();
-  if (nome === 'resultados-admin') carregarJogosAdmin();
-  if (nome === 'jogos-admin') carregarJogosCadastrados('todos');
+  if (nome === 'resultados') carregarJogosAdmin();
+  if (nome === 'jogos') carregarJogosCadastrados('todos');
 }
 
 // ============================================================
