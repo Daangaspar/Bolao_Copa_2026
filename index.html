@@ -1163,6 +1163,21 @@
   </div>
 </div>
 
+<!-- MODAL AJUSTAR PALPITES -->
+<div class="modal-overlay" id="modal-ajuste-palpites">
+  <div class="modal" style="max-width:480px">
+    <h3>✏️ Ajustar Palpites</h3>
+    <p style="color:var(--texto2);font-size:0.85rem;margin-bottom:1rem">
+      Use isso só pra corrigir um palpite que não foi salvo corretamente (ex: bug, ou o participante mandou por WhatsApp e não conseguiu registrar no app). Cuidado ao editar palpites já registrados.
+    </p>
+    <div id="modal-ajuste-content" style="max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:0.6rem"></div>
+    <div class="modal-acoes">
+      <button class="btn btn-cinza" onclick="fecharModal('modal-ajuste-palpites')">Fechar</button>
+      <button class="btn btn-verde" onclick="salvarAjustePalpites()">Salvar todos</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // CONFIG
@@ -1965,7 +1980,10 @@ async function carregarJogosAdmin() {
             <div style="font-weight:600;font-size:0.95rem">${j.bandeira_a || '🏳️'} ${j.time_a} vs ${j.time_b} ${j.bandeira_b || '🏳️'}</div>
             ${encerrado 
               ? `<div style="font-family:'Bebas Neue',cursive;font-size:1.3rem;color:var(--ouro)">${j.gols_a} × ${j.gols_b}</div>`
-              : `<button class="btn-sm btn-sm-ouro" onclick="abrirModalResultado('${j.id}', '${j.time_a}', '${j.time_b}', '${j.fase}')">Lançar</button>`
+              : `<div style="display:flex;gap:0.4rem">
+                  <button class="btn-sm btn-sm-azul" onclick="abrirModalAjustePalpites('${j.id}', '${j.time_a}', '${j.time_b}')">✏️ Palpites</button>
+                  <button class="btn-sm btn-sm-ouro" onclick="abrirModalResultado('${j.id}', '${j.time_a}', '${j.time_b}', '${j.fase}')">Lançar</button>
+                 </div>`
             }
           </div>
         </div>
@@ -2031,6 +2049,79 @@ async function confirmarResultado() {
     carregarJogosAdmin();
   } catch(e) {
     alert('Erro ao lançar resultado.');
+    console.error(e);
+  }
+}
+
+// ============================================================
+// ADMIN: AJUSTAR PALPITES MANUALMENTE (antes do resultado)
+// ============================================================
+let jogoAjusteAtual = null;
+
+async function abrirModalAjustePalpites(jogoId, timeA, timeB) {
+  jogoAjusteAtual = { jogoId, timeA, timeB };
+  const content = document.getElementById('modal-ajuste-content');
+  content.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando...</div>';
+  document.getElementById('modal-ajuste-palpites').classList.add('ativo');
+
+  try {
+    const participantes = await dbGet('participantes', 'order=nome.asc');
+    const palpites = await dbGet('palpites', `jogo_id=eq.${jogoId}`);
+
+    content.innerHTML = `
+      <div style="font-size:0.85rem;color:var(--texto2);margin-bottom:0.4rem">${timeA} vs ${timeB}</div>
+      ${participantes.map(p => {
+        const pal = palpites.find(x => x.participante_id === p.id);
+        return `
+          <div style="display:grid;grid-template-columns:1fr 50px 16px 50px;gap:0.5rem;align-items:center;background:var(--bg3);border-radius:8px;padding:0.5rem 0.7rem">
+            <div style="font-size:0.9rem;font-weight:600">${p.nome}</div>
+            <input type="number" min="0" max="99" id="ajuste-a-${p.id}" value="${pal ? pal.palpite_a : ''}" placeholder="-" style="background:var(--bg2);border:1px solid var(--borda);border-radius:6px;padding:0.4rem;color:var(--texto);font-family:'Bebas Neue',cursive;font-size:1rem;text-align:center;outline:none">
+            <div style="text-align:center;color:var(--texto2)">×</div>
+            <input type="number" min="0" max="99" id="ajuste-b-${p.id}" value="${pal ? pal.palpite_b : ''}" placeholder="-" style="background:var(--bg2);border:1px solid var(--borda);border-radius:6px;padding:0.4rem;color:var(--texto);font-family:'Bebas Neue',cursive;font-size:1rem;text-align:center;outline:none">
+          </div>
+        `;
+      }).join('')}
+    `;
+  } catch(e) {
+    content.innerHTML = '<div class="vazio">❌ Erro ao carregar participantes.</div>';
+    console.error(e);
+  }
+}
+
+async function salvarAjustePalpites() {
+  try {
+    const participantes = await dbGet('participantes', 'order=nome.asc');
+
+    for (const p of participantes) {
+      const inputA = document.getElementById(`ajuste-a-${p.id}`);
+      const inputB = document.getElementById(`ajuste-b-${p.id}`);
+      if (!inputA || !inputB) continue;
+
+      const va = inputA.value;
+      const vb = inputB.value;
+      if (va === '' || vb === '') continue; // deixa em branco = não altera
+
+      const existente = await dbGet('palpites', `participante_id=eq.${p.id}&jogo_id=eq.${jogoAjusteAtual.jogoId}`);
+      if (existente.length > 0) {
+        await dbPatch('palpites', `participante_id=eq.${p.id}&jogo_id=eq.${jogoAjusteAtual.jogoId}`, {
+          palpite_a: parseInt(va),
+          palpite_b: parseInt(vb),
+          atualizado_em: new Date().toISOString()
+        });
+      } else {
+        await dbPost('palpites', {
+          participante_id: p.id,
+          jogo_id: jogoAjusteAtual.jogoId,
+          palpite_a: parseInt(va),
+          palpite_b: parseInt(vb)
+        });
+      }
+    }
+
+    fecharModal('modal-ajuste-palpites');
+    alert('Palpites ajustados com sucesso!');
+  } catch(e) {
+    alert('Erro ao salvar ajustes.');
     console.error(e);
   }
 }
