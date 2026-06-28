@@ -956,6 +956,7 @@
       <button class="ranking-tab" onclick="filtrarPalpites('rodada1', this)">Rodada 1</button>
       <button class="ranking-tab" onclick="filtrarPalpites('rodada2', this)">Rodada 2</button>
       <button class="ranking-tab" onclick="filtrarPalpites('rodada3', this)">Rodada 3</button>
+      <button class="ranking-tab" onclick="filtrarPalpites('avos', this)">16 Avos</button>
       <button class="ranking-tab" onclick="filtrarPalpites('oitavas', this)">Oitavas</button>
       <button class="ranking-tab" onclick="filtrarPalpites('quartas', this)">Quartas</button>
       <button class="ranking-tab" onclick="filtrarPalpites('semi', this)">Semi</button>
@@ -993,6 +994,7 @@
     <div class="ranking-tabs">
       <button class="ranking-tab ativa" onclick="filtrarRanking('geral', this)">Geral</button>
       <button class="ranking-tab" onclick="filtrarRanking('grupos', this)">Grupos</button>
+      <button class="ranking-tab" onclick="filtrarRanking('avos', this)">16 Avos</button>
       <button class="ranking-tab" onclick="filtrarRanking('oitavas', this)">Oitavas</button>
       <button class="ranking-tab" onclick="filtrarRanking('quartas', this)">Quartas</button>
       <button class="ranking-tab" onclick="filtrarRanking('semi', this)">Semi</button>
@@ -1062,6 +1064,7 @@
               <label>Fase</label>
               <select id="jogo-fase" style="width:100%;background:var(--bg3);border:1px solid var(--borda);border-radius:8px;padding:0.6rem 0.8rem;color:var(--texto);font-family:'Barlow',sans-serif;outline:none" onchange="toggleGrupo()">
                 <option value="grupos">Grupos</option>
+                <option value="avos">16 Avos</option>
                 <option value="oitavas">Oitavas</option>
                 <option value="quartas">Quartas</option>
                 <option value="semi">Semifinal</option>
@@ -1107,6 +1110,7 @@
         <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
           <button class="btn-sm btn-sm-verde" onclick="filtrarJogosAdmin('todos')">Todos</button>
           <button class="btn-sm btn-sm-azul" onclick="filtrarJogosAdmin('grupos')">Grupos</button>
+          <button class="btn-sm btn-sm-ouro" onclick="filtrarJogosAdmin('avos')">16 Avos</button>
           <button class="btn-sm btn-sm-ouro" onclick="filtrarJogosAdmin('oitavas')">Oitavas</button>
           <button class="btn-sm btn-sm-ouro" onclick="filtrarJogosAdmin('quartas')">Quartas</button>
           <button class="btn-sm btn-sm-ouro" onclick="filtrarJogosAdmin('semi')">Semi</button>
@@ -1388,7 +1392,7 @@ async function cadastrarJogo() {
   const a = separarEmoji(timeAraw);
   const b = separarEmoji(timeBraw);
 
-  const multiplicadores = { grupos: 1.0, oitavas: 1.2, quartas: 1.5, semi: 2.0, terceiro: 3.0, final: 3.0 };
+  const multiplicadores = { grupos: 1.0, avos: 1.1, oitavas: 1.2, quartas: 1.5, semi: 2.0, terceiro: 3.0, final: 3.0 };
 
   // Converter datetime-local (horário Brasília) pra UTC
   const dtLocal = new Date(dataHora);
@@ -1493,7 +1497,7 @@ function filtrarPalpites(filtro, el) {
   el.classList.add('ativa');
   const titulos = {
     todos: 'Próximos jogos', rodada1: 'Rodada 1', rodada2: 'Rodada 2', rodada3: 'Rodada 3',
-    oitavas: 'Oitavas de Final', quartas: 'Quartas de Final', semi: 'Semifinais', final: 'Final'
+    avos: '16 Avos de Final', oitavas: 'Oitavas de Final', quartas: 'Quartas de Final', semi: 'Semifinais', final: 'Final'
   };
   document.getElementById('filtro-titulo').textContent = titulos[filtro] || 'Jogos';
   carregarPalpites();
@@ -1511,7 +1515,7 @@ async function carregarPalpites() {
     if (filtroPalpiteAtual === 'rodada1') queryFiltro = 'fase=eq.grupos&rodada=eq.1&order=data_hora.asc';
     else if (filtroPalpiteAtual === 'rodada2') queryFiltro = 'fase=eq.grupos&rodada=eq.2&order=data_hora.asc';
     else if (filtroPalpiteAtual === 'rodada3') queryFiltro = 'fase=eq.grupos&rodada=eq.3&order=data_hora.asc';
-    else if (['oitavas','quartas','semi','terceiro','final'].includes(filtroPalpiteAtual)) queryFiltro = `fase=eq.${filtroPalpiteAtual}&order=data_hora.asc`;
+    else if (['avos','oitavas','quartas','semi','terceiro','final'].includes(filtroPalpiteAtual)) queryFiltro = `fase=eq.${filtroPalpiteAtual}&order=data_hora.asc`;
     else queryFiltro = 'resultado_lancado=eq.false&order=data_hora.asc&limit=100';
 
     const jogos = await dbGet('jogos', queryFiltro);
@@ -2206,7 +2210,7 @@ function formatarData(iso) {
 }
 
 function formatarFase(fase) {
-  const mapa = { grupos: 'Grupos', oitavas: 'Oitavas', quartas: 'Quartas', semi: 'Semifinal', terceiro: '3º Lugar', final: 'Final' };
+  const mapa = { grupos: 'Grupos', avos: '16 Avos', oitavas: 'Oitavas', quartas: 'Quartas', semi: 'Semifinal', terceiro: '3º Lugar', final: 'Final' };
   return mapa[fase] || fase;
 }
 
